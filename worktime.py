@@ -121,7 +121,7 @@ class TimeTrackerApp:
         button_frame.pack(side="bottom", pady=10)
 
         ttk.Button(button_frame, text="查看统计", command=self.open_stats_window).pack(side="left", padx=10)
-        ttk.Button(button_frame, text="补录数据", command=self.open_manual_entry_window).pack(side="left", padx=10)
+        ttk.Button(button_frame, text="修改数据", command=self.open_manual_entry_window).pack(side="left", padx=10)
 
     def load_initial_state(self):
         """程序启动时加载今天的状态"""
@@ -292,7 +292,7 @@ class ManualEntryWindow:
 
     def __init__(self, parent, db_manager):
         self.win = tk.Toplevel(parent)
-        self.win.title("补录数据")
+        self.win.title("修改数据")
         self.win.geometry("400x450")
 
         self.db = db_manager
@@ -311,6 +311,11 @@ class ManualEntryWindow:
         ttk.Button(date_frame, text="...", command=self.open_datepicker, width=3).pack(side='left', padx=(5, 0))
         ttk.Button(date_frame, text="加载", command=self.load_checkpoints).pack(side='left', padx=(10, 0))
 
+        # 添加说明标签
+        info_text = "说明：将按时间顺序两两配对（上班-下班）来计算总工时。"
+        info_label = ttk.Label(frame, text=info_text, foreground="gray", wraplength=350, justify='left')
+        info_label.pack(fill='x', pady=(10, 0))
+
         # 时间点列表
         list_frame = ttk.Frame(frame)
         list_frame.pack(expand=True, fill='both', pady=10)
@@ -324,9 +329,9 @@ class ManualEntryWindow:
         # 添加、修改和删除按钮
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(fill='x', pady=5)
-        ttk.Button(btn_frame, text="添加时间点", command=self.add_checkpoint).pack(side='left', expand=True, padx=2)
-        ttk.Button(btn_frame, text="修改选中项", command=self.modify_checkpoint).pack(side='left', expand=True, padx=2)
-        ttk.Button(btn_frame, text="删除选中项", command=self.delete_checkpoint).pack(side='left', expand=True, padx=2)
+        ttk.Button(btn_frame, text="添加", command=self.add_checkpoint).pack(side='left', expand=True, padx=2)
+        ttk.Button(btn_frame, text="修改", command=self.modify_checkpoint).pack(side='left', expand=True, padx=2)
+        ttk.Button(btn_frame, text="删除", command=self.delete_checkpoint).pack(side='left', expand=True, padx=2)
 
         self.load_checkpoints()
         self.win.transient(parent)
@@ -516,4 +521,3 @@ if __name__ == "__main__":
     app = TimeTrackerApp(app_root)
     app_root.protocol("WM_DELETE_WINDOW", app.on_closing)
     app_root.mainloop()
-
