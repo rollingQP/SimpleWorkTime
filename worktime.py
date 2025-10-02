@@ -505,10 +505,20 @@ class StatsWindow:
         ttk.Button(date_range_frame, text="生成报告", command=self.generate_report).pack(side='left', padx=10)
 
         # 结果展示
-        self.tree = ttk.Treeview(frame, columns=('date', 'hours'), show='headings')
+        tree_frame = ttk.Frame(frame)
+        tree_frame.pack(expand=True, fill='both', pady=10)
+
+        self.tree = ttk.Treeview(tree_frame, columns=('date', 'hours'), show='headings')
         self.tree.heading('date', text='日期')
         self.tree.heading('hours', text='总工时')
-        self.tree.pack(expand=True, fill='both', pady=10)
+
+        # 滚动条
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+
+        vsb.pack(side='right', fill='y')
+        self.tree.pack(side='left', expand=True, fill='both')
+
         self.tree.bind("<Double-1>", self.on_date_double_click)
 
         # 配置用于高亮和总计的标签样式
