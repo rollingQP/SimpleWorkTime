@@ -11,3 +11,4 @@ A simple punch clock: One click to check in, One click to check out
 
 <img src="img/main_window.png" width="300">
 <img src="img/statistics_window.png" width="300">
+<img src="img/alt_window.png" width="300">
