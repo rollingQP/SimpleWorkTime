@@ -445,11 +445,12 @@ class StatsWindow:
         date_range_frame.pack(fill='x', pady=5)
 
         today = date.today()
-        one_week_ago = today - timedelta(days=7)
+        # 设置默认开始日期为 2025-09-01
+        default_start_date = date(2025, 9, 1)
 
         ttk.Label(date_range_frame, text="从:").pack(side='left')
         self.start_date_entry = ttk.Entry(date_range_frame, width=12)
-        self.start_date_entry.insert(0, one_week_ago.strftime('%Y-%m-%d'))
+        self.start_date_entry.insert(0, default_start_date.strftime('%Y-%m-%d'))
         self.start_date_entry.pack(side='left', padx=5)
 
         ttk.Label(date_range_frame, text="到:").pack(side='left')
@@ -464,6 +465,10 @@ class StatsWindow:
         self.tree.heading('date', text='日期')
         self.tree.heading('hours', text='总工时')
         self.tree.pack(expand=True, fill='both', pady=10)
+
+        # 配置用于高亮和总计的标签样式
+        self.tree.tag_configure('missing_punch', foreground='orange', font=('Helvetica', 9, 'italic'))
+        self.tree.tag_configure('total', font=('Helvetica', 10, 'bold'))
 
         self.win.transient(parent)
         self.win.grab_set()
@@ -499,11 +504,19 @@ class StatsWindow:
         for day, checkpoints in sorted(daily_data.items()):
             total_seconds_day = self.calculate_worked_seconds_static(checkpoints)
             total_seconds_all_days += total_seconds_day
-            self.tree.insert('', 'end', values=(day.strftime('%Y-%m-%d'), self.formatter(total_seconds_day)))
+
+            display_hours = self.formatter(total_seconds_day)
+            row_tags = ()
+
+            # 如果打卡次数为奇数，则标记为漏打卡
+            if len(checkpoints) % 2 != 0:
+                display_hours += " (漏打卡)"
+                row_tags = ('missing_punch',)
+
+            self.tree.insert('', 'end', values=(day.strftime('%Y-%m-%d'), display_hours), tags=row_tags)
 
         # 显示总计
         self.tree.insert('', 'end', values=("--- 总计 ---", self.formatter(total_seconds_all_days)), tags=('total',))
-        self.tree.tag_configure('total', font=('Helvetica', 10, 'bold'))
 
     @staticmethod
     def calculate_worked_seconds_static(checkpoints):
