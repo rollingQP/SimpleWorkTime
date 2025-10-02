@@ -116,6 +116,10 @@ class TimeTrackerApp:
         style.configure('TButton', font=('Helvetica', 12), padding=10)
         self.toggle_button.pack(pady=20)
 
+        # 添加一个用于提示信息的小标签
+        self.info_label = ttk.Label(main_frame, text="", foreground="gray")
+        self.info_label.pack(pady=5)
+
         # --- 底部功能按钮 ---
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(side="bottom", pady=10)
@@ -144,12 +148,14 @@ class TimeTrackerApp:
             self.last_start_time = checkpoints[-1]
             self.status_label.config(text="状态: 工作中...", foreground="green")
             self.toggle_button.config(text="下班打卡")
+            self.info_label.config(text="现在可关闭窗口，不影响计时。")
             self.start_ui_update_timer()
         else:  # 偶数个点，表示已停止
             self.is_running = False
             self.last_start_time = None
             self.status_label.config(text="状态: 已停止", foreground="red")
             self.toggle_button.config(text="上班打卡")
+            self.info_label.config(text="")
             self.stop_ui_update_timer()
 
         self.total_time_label.config(text=f"今日总工时: {self.format_seconds(total_seconds_today)}")
