@@ -199,11 +199,11 @@ class TimeTrackerApp:
 
     def open_stats_window(self):
         """打开统计窗口"""
-        StatsWindow(self.root, self.db, self.format_seconds)
+        StatsWindow(self.root, self, self.db, self.format_seconds)
 
-    def open_manual_entry_window(self):
+    def open_manual_entry_window(self, target_date=None):
         """打开手动补录窗口"""
-        win = ManualEntryWindow(self.root, self.db)
+        win = ManualEntryWindow(self.root, self.db, target_date=target_date)
         # 补录后刷新主界面
         if win.dirty:
             self.load_initial_state()
@@ -290,7 +290,7 @@ class DatePicker(tk.Toplevel):
 class ManualEntryWindow:
     """补录数据窗口"""
 
-    def __init__(self, parent, db_manager):
+    def __init__(self, parent, db_manager, target_date=None):
         self.win = tk.Toplevel(parent)
         self.win.title("修改数据")
         self.win.geometry("400x450")
@@ -306,7 +306,10 @@ class ManualEntryWindow:
         date_frame.pack(fill='x', pady=5)
         ttk.Label(date_frame, text="选择日期:").pack(side='left', padx=(0, 10))
         self.date_entry = ttk.Entry(date_frame)
-        self.date_entry.insert(0, date.today().strftime('%Y-%m-%d'))
+
+        display_date = target_date if target_date else date.today()
+        self.date_entry.insert(0, display_date.strftime('%Y-%m-%d'))
+
         self.date_entry.pack(side='left', fill='x', expand=True)
         ttk.Button(date_frame, text="...", command=self.open_datepicker, width=3).pack(side='left', padx=(5, 0))
         ttk.Button(date_frame, text="加载", command=self.load_checkpoints).pack(side='left', padx=(10, 0))
@@ -429,11 +432,12 @@ class ManualEntryWindow:
 class StatsWindow:
     """统计数据窗口"""
 
-    def __init__(self, parent, db_manager, formatter):
+    def __init__(self, parent, app, db_manager, formatter):
         self.win = tk.Toplevel(parent)
         self.win.title("工时统计")
         self.win.geometry("500x400")
 
+        self.app = app
         self.db = db_manager
         self.formatter = formatter
 
@@ -465,6 +469,7 @@ class StatsWindow:
         self.tree.heading('date', text='日期')
         self.tree.heading('hours', text='总工时')
         self.tree.pack(expand=True, fill='both', pady=10)
+        self.tree.bind("<Double-1>", self.on_date_double_click)
 
         # 配置用于高亮和总计的标签样式
         self.tree.tag_configure('missing_punch', foreground='orange', font=('Helvetica', 9, 'italic'))
@@ -472,6 +477,28 @@ class StatsWindow:
 
         self.win.transient(parent)
         self.win.grab_set()
+
+    def on_date_double_click(self, event):
+        """处理在日期条目上的双击事件，跳转到修改窗口"""
+        item_id = self.tree.identify_row(event.y)
+        if not item_id:
+            return
+
+        item = self.tree.item(item_id)
+        if not item['values']:
+            return
+
+        date_str = item['values'][0]
+        try:
+            # 尝试解析日期以确保它是一个有效的日期行（而不是总计行）
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            # self.win.destroy()  # 不再关闭当前的统计窗口
+            self.app.open_manual_entry_window(target_date=target_date)
+            # 修改窗口关闭后，刷新统计报告以显示最新数据
+            self.generate_report()
+        except (ValueError, IndexError):
+            # 如果点击的是总计行或标题行，则会解析失败，不做任何事
+            pass
 
     def generate_report(self):
         """生成并显示统计报告"""
