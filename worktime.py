@@ -82,33 +82,36 @@ class TimeTrackerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("工时打卡器")
-        self.root.geometry("450x350")
-        self.root.minsize(450, 350)
-        self.db = DatabaseManager()
+        self.root.geometry("350x300")
+        self.root.resizable(False, False)
 
-        self.is_running = False
-        self.last_start_time = None
+        # 数据库和格式化工具
+        self.db = DatabaseManager()
         self.update_job = None
 
         self.setup_ui()
         self.load_initial_state()
 
+        # 当窗口关闭时，停止UI更新定时器
+        self.root.protocol("WM_DELETE_WINDOW", self.clean_up_on_exit)
+
+    def clean_up_on_exit(self):
+        """关闭窗口时停止UI更新定时器并销毁窗口"""
+        self.stop_ui_update_timer()
+        self.root.destroy()
+
     def setup_ui(self):
-        """设置用户界面"""
-        main_frame = ttk.Frame(self.root, padding="20")
+        """设置主界面UI"""
+        main_frame = ttk.Frame(self.root, padding=20)
         main_frame.pack(expand=True, fill="both")
-
-        # --- 顶部信息 ---
-        self.date_label = ttk.Label(main_frame, text=f"今天是: {date.today().strftime('%Y-%m-%d')}",
-                                    font=("Helvetica", 14))
-        self.date_label.pack(pady=(0, 10))
-
-        self.status_label = ttk.Label(main_frame, text="状态: 已停止", font=("Helvetica", 16, "bold"), foreground="red")
-        self.status_label.pack(pady=10)
 
         # --- 时间显示 ---
         self.total_time_label = ttk.Label(main_frame, text="今日总工时: 00:00:00", font=("Helvetica", 12))
         self.total_time_label.pack(pady=5)
+
+        # --- 状态显示 ---
+        self.status_label = ttk.Label(main_frame, text="状态: 已停止", font=("Helvetica", 10), foreground="red")
+        self.status_label.pack(pady=5)
 
         # --- 主按钮 ---
         self.toggle_button = ttk.Button(main_frame, text="上班打卡", command=self.toggle_timer, width=20)
@@ -215,12 +218,6 @@ class TimeTrackerApp:
         # 补录后刷新主界面
         if win.dirty:
             self.load_initial_state()
-
-    def on_closing(self):
-        """关闭程序前的清理工作"""
-        if messagebox.askokcancel("退出", "你确定要退出吗?"):
-            self.db.close()
-            self.root.destroy()
 
 
 class DatePicker(tk.Toplevel):
@@ -602,5 +599,4 @@ class StatsWindow:
 if __name__ == "__main__":
     app_root = tk.Tk()
     app = TimeTrackerApp(app_root)
-    app_root.protocol("WM_DELETE_WINDOW", app.on_closing)
     app_root.mainloop()
