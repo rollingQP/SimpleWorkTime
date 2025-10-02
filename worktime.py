@@ -201,9 +201,11 @@ class TimeTrackerApp:
         """打开统计窗口"""
         StatsWindow(self.root, self, self.db, self.format_seconds)
 
-    def open_manual_entry_window(self, target_date=None):
+    def open_manual_entry_window(self, parent_win=None, target_date=None):
         """打开手动补录窗口"""
-        win = ManualEntryWindow(self.root, self.db, target_date=target_date)
+        if parent_win is None:
+            parent_win = self.root
+        win = ManualEntryWindow(parent_win, self.db, target_date=target_date)
         # 补录后刷新主界面
         if win.dirty:
             self.load_initial_state()
@@ -220,9 +222,20 @@ class DatePicker(tk.Toplevel):
 
     def __init__(self, parent, entry_widget):
         super().__init__(parent)
+        self.withdraw()  # 立即隐藏窗口
+        self.transient(parent)  # 尽早设置窗口的从属关系
         self.title("选择日期")
         self.entry_widget = entry_widget
         self.selected_date = None
+
+        # Position window logic
+        parent.update_idletasks()
+        parent_x = parent.winfo_x()
+        parent_y = parent.winfo_y()
+        parent_width = parent.winfo_width()
+        new_x = parent_x + parent_width + 10
+        new_y = parent_y + 30
+        self.geometry(f"+{new_x}+{new_y}")
 
         try:
             self.current_date = datetime.strptime(entry_widget.get(), '%Y-%m-%d').date()
@@ -234,7 +247,7 @@ class DatePicker(tk.Toplevel):
         self.setup_ui()
         self.update_calendar()
 
-        self.transient(parent)
+        self.deiconify()  # 在所有组件设置完毕后显示窗口
         self.grab_set()
 
     def setup_ui(self):
@@ -292,8 +305,20 @@ class ManualEntryWindow:
 
     def __init__(self, parent, db_manager, target_date=None):
         self.win = tk.Toplevel(parent)
+        self.win.withdraw()  # 立即隐藏窗口
+        self.win.transient(parent)  # 尽早设置窗口的从属关系
         self.win.title("修改数据")
-        self.win.geometry("400x450")
+
+        # Position window logic
+        parent.update_idletasks()
+        parent_x = parent.winfo_x()
+        parent_y = parent.winfo_y()
+        parent_width = parent.winfo_width()
+        win_width = 400
+        win_height = 450
+        new_x = parent_x + parent_width + 10
+        new_y = parent_y
+        self.win.geometry(f"{win_width}x{win_height}+{new_x}+{new_y}")
 
         self.db = db_manager
         self.dirty = False  # 标记数据是否被修改过
@@ -337,7 +362,7 @@ class ManualEntryWindow:
         ttk.Button(btn_frame, text="删除", command=self.delete_checkpoint).pack(side='left', expand=True, padx=2)
 
         self.load_checkpoints()
-        self.win.transient(parent)
+        self.win.deiconify()  # 在所有组件设置完毕后显示窗口
         self.win.grab_set()
         parent.wait_window(self.win)
 
@@ -434,8 +459,20 @@ class StatsWindow:
 
     def __init__(self, parent, app, db_manager, formatter):
         self.win = tk.Toplevel(parent)
+        self.win.withdraw()  # 立即隐藏窗口
+        self.win.transient(parent)  # 尽早设置窗口的从属关系
         self.win.title("工时统计")
-        self.win.geometry("500x400")
+
+        # Position window logic
+        parent.update_idletasks()
+        parent_x = parent.winfo_x()
+        parent_y = parent.winfo_y()
+        parent_width = parent.winfo_width()
+        win_width = 500
+        win_height = 400
+        new_x = parent_x + parent_width + 10
+        new_y = parent_y
+        self.win.geometry(f"{win_width}x{win_height}+{new_x}+{new_y}")
 
         self.app = app
         self.db = db_manager
@@ -475,7 +512,7 @@ class StatsWindow:
         self.tree.tag_configure('missing_punch', foreground='orange', font=('Helvetica', 9, 'italic'))
         self.tree.tag_configure('total', font=('Helvetica', 10, 'bold'))
 
-        self.win.transient(parent)
+        self.win.deiconify()  # 在所有组件设置完毕后显示窗口
         self.win.grab_set()
 
     def on_date_double_click(self, event):
@@ -492,8 +529,8 @@ class StatsWindow:
         try:
             # 尝试解析日期以确保它是一个有效的日期行（而不是总计行）
             target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            # self.win.destroy()  # 不再关闭当前的统计窗口
-            self.app.open_manual_entry_window(target_date=target_date)
+            # 传入 self.win 作为父窗口，确保修改窗口显示在统计窗口之上
+            self.app.open_manual_entry_window(parent_win=self.win, target_date=target_date)
             # 修改窗口关闭后，刷新统计报告以显示最新数据
             self.generate_report()
         except (ValueError, IndexError):
