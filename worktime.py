@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import sqlite3
 from datetime import datetime, date, timedelta
+import calendar
 
 
 class DatabaseManager:
@@ -202,15 +203,88 @@ class TimeTrackerApp:
 
     def open_manual_entry_window(self):
         """打开手动补录窗口"""
-        ManualEntryWindow(self.root, self.db)
+        win = ManualEntryWindow(self.root, self.db)
         # 补录后刷新主界面
-        self.load_initial_state()
+        if win.dirty:
+            self.load_initial_state()
 
     def on_closing(self):
         """关闭程序前的清理工作"""
         if messagebox.askokcancel("退出", "你确定要退出吗?"):
             self.db.close()
             self.root.destroy()
+
+
+class DatePicker(tk.Toplevel):
+    """一个简单的日历日期选择器窗口"""
+
+    def __init__(self, parent, entry_widget):
+        super().__init__(parent)
+        self.title("选择日期")
+        self.entry_widget = entry_widget
+        self.selected_date = None
+
+        try:
+            self.current_date = datetime.strptime(entry_widget.get(), '%Y-%m-%d').date()
+        except ValueError:
+            self.current_date = date.today()
+
+        self.cal = calendar.Calendar()
+
+        self.setup_ui()
+        self.update_calendar()
+
+        self.transient(parent)
+        self.grab_set()
+
+    def setup_ui(self):
+        # 导航框架
+        nav_frame = ttk.Frame(self)
+        nav_frame.pack(pady=5)
+        ttk.Button(nav_frame, text="<", command=self.prev_month, width=4).pack(side="left", padx=5)
+        self.month_year_label = ttk.Label(nav_frame, width=18, anchor="center")
+        self.month_year_label.pack(side="left")
+        ttk.Button(nav_frame, text=">", command=self.next_month, width=4).pack(side="left", padx=5)
+
+        # 日历框架
+        self.cal_frame = ttk.Frame(self, padding=5)
+        self.cal_frame.pack()
+
+    def update_calendar(self):
+        # 清空旧的日历
+        for widget in self.cal_frame.winfo_children():
+            widget.destroy()
+
+        self.month_year_label.config(text=self.current_date.strftime('%Y 年 %m 月'))
+
+        month_days = self.cal.monthdayscalendar(self.current_date.year, self.current_date.month)
+
+        # 星期标签
+        days = ['一', '二', '三', '四', '五', '六', '日']
+        for i, day in enumerate(days):
+            ttk.Label(self.cal_frame, text=day).grid(row=0, column=i, padx=2, pady=2)
+
+        # 日期按钮
+        for r, week in enumerate(month_days):
+            for c, day in enumerate(week):
+                if day != 0:
+                    btn = ttk.Button(self.cal_frame, text=str(day), width=4, command=lambda d=day: self.select_date(d))
+                    btn.grid(row=r + 1, column=c, padx=2, pady=2)
+
+    def prev_month(self):
+        self.current_date -= timedelta(days=self.current_date.day)  # Go to end of previous month
+        self.update_calendar()
+
+    def next_month(self):
+        first_day, num_days = calendar.monthrange(self.current_date.year, self.current_date.month)
+        self.current_date += timedelta(days=num_days - self.current_date.day + 1)
+        self.update_calendar()
+
+    def select_date(self, day):
+        self.selected_date = date(self.current_date.year, self.current_date.month, day)
+        self.entry_widget.delete(0, tk.END)
+        self.entry_widget.insert(0, self.selected_date.strftime('%Y-%m-%d'))
+        self.destroy()
 
 
 class ManualEntryWindow:
@@ -222,6 +296,7 @@ class ManualEntryWindow:
         self.win.geometry("400x450")
 
         self.db = db_manager
+        self.dirty = False  # 标记数据是否被修改过
 
         frame = ttk.Frame(self.win, padding=15)
         frame.pack(expand=True, fill="both")
@@ -233,6 +308,7 @@ class ManualEntryWindow:
         self.date_entry = ttk.Entry(date_frame)
         self.date_entry.insert(0, date.today().strftime('%Y-%m-%d'))
         self.date_entry.pack(side='left', fill='x', expand=True)
+        ttk.Button(date_frame, text="...", command=self.open_datepicker, width=3).pack(side='left', padx=(5, 0))
         ttk.Button(date_frame, text="加载", command=self.load_checkpoints).pack(side='left', padx=(10, 0))
 
         # 时间点列表
@@ -257,12 +333,17 @@ class ManualEntryWindow:
         self.win.grab_set()
         parent.wait_window(self.win)
 
+    def open_datepicker(self):
+        """打开日期选择器"""
+        DatePicker(self.win, self.date_entry)
+
     def load_checkpoints(self):
         """加载指定日期的时间点到列表"""
         self.checkpoints_listbox.delete(0, tk.END)
         try:
-            target_date = datetime.strptime(self.date_entry.get(), '%Y-%m-%d').date()
-            self.checkpoints = self.db.get_checkpoints_for_day(target_date)
+            target_date_str = self.date_entry.get()
+            self.target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+            self.checkpoints = self.db.get_checkpoints_for_day(self.target_date)
             for cp in self.checkpoints:
                 self.checkpoints_listbox.insert(tk.END, cp.strftime('%Y-%m-%d %H:%M:%S'))
         except ValueError:
@@ -278,6 +359,7 @@ class ManualEntryWindow:
                 dt_obj = datetime.strptime(full_datetime_str, '%Y-%m-%d %H:%M:%S')
                 if self.db.add_checkpoint(dt_obj):
                     self.load_checkpoints()
+                    if self.target_date == date.today(): self.dirty = True
                 else:
                     messagebox.showwarning("警告", "添加失败，该时间点可能已存在。")
             except ValueError:
@@ -307,16 +389,14 @@ class ManualEntryWindow:
                 full_datetime_str = f"{target_date_str} {new_time_str}"
                 new_checkpoint = datetime.strptime(full_datetime_str, '%Y-%m-%d %H:%M:%S')
 
-                # 为了保证数据唯一性，我们先删除旧记录，再添加新记录。
-                # 这样做比直接 UPDATE 更安全，因为 checkpoint 字段是 UNIQUE 的。
                 if self.db.delete_checkpoint(old_checkpoint):
                     if not self.db.add_checkpoint(new_checkpoint):
-                        # 如果添加新记录失败（例如，时间点与另一条现有记录重复），
-                        # 则把旧记录加回去，实现操作的回滚。
                         self.db.add_checkpoint(old_checkpoint)
                         messagebox.showwarning("警告", "修改失败，新的时间点可能与现有记录重复。")
+                    else:
+                        if self.target_date == date.today(): self.dirty = True
 
-                    self.load_checkpoints()  # 无论成功与否都刷新列表以反映最新状态
+                    self.load_checkpoints()
                 else:
                     messagebox.showerror("错误", "修改失败，无法删除旧记录。")
 
@@ -336,6 +416,7 @@ class ManualEntryWindow:
         if messagebox.askyesno("确认删除", f"你确定要删除 {checkpoint_to_delete.strftime('%H:%M:%S')} 这个记录吗?"):
             if self.db.delete_checkpoint(checkpoint_to_delete):
                 self.load_checkpoints()
+                if self.target_date == date.today(): self.dirty = True
             else:
                 messagebox.showerror("错误", "删除失败。")
 
