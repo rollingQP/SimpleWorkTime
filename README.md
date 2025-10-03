@@ -16,6 +16,7 @@ A simple punch clock: One click to check in, One click to check out
 
 ## 安装
 ### Windows
+**我自己打包好的文件似乎会被杀毒软件误报**，可以自己下载```worktime.py```然后直接使用python执行或者用```pyinstaller```打包：```pyinstaller --onefile --windowed --name TimeTracker worktime.py```。
 1. 打开本项目的releases页面（[https://github.com/rollingQP/SimpleWorkTime/releases](https://github.com/rollingQP/SimpleWorkTime/releases)）
 2. 找到最新的一个版本号，点击```SimpleWorkTime.exe```下载Windows版。
 3. 把下载下来的```SimpleWorkTime.exe```放到一个合适的目录，双击即可启动。
